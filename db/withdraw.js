@@ -11,7 +11,10 @@ export default async function withdraw(db, args) {
 }
 
 async function doWithdraw(db, amount, account) {
+    // Perform check that the account exists
     await checkAccountExists(db, account);
+    // Try and remove the amount of money from the account (Cannot remove too much as this would violate our non-negative integer constraint on the accounts)
     await db.query('update accounts set balance = balance - $1 where account_id = $2', [amount, account]);
+    // Consolidate the vault
     await db.query('update vault set balance = balance - $1', [amount]);
 }

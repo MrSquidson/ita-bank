@@ -12,8 +12,24 @@ export default async function transfer(db, args) {
 }
 
 async function doTransfer(db, amount, sender, receiver) {
-    await checkAccountExists(db, sender);
-    await checkAccountExists(db, receiver);
-    await db.query('update accounts set balance = balance + $1 where account_id = $2', [amount, receiver]);
-    await db.query('update accounts set balance = balance - $1 where account_id = $2', [amount, sender]);
+    // Start SQL Transaction
+    await db.query('begin; set transaction isolation level repeatable read')
+    try{
+        // Check sender exists-
+        await checkAccountExists(db, sender);
+        // Check reciever exists-
+        await checkAccountExists(db, receiver);
+        // Update senders balance
+        await db.query('update accounts set balance = balance - $1 where account_id = $2', [amount, sender]);
+        // Update recievers balance
+        await db.query('update accounts set balance = balance + $1 where account_id = $2', [amount, receiver]);
+        // Save transaction
+        await db.query('commit')
+    }
+    catch(e) {
+        // Roll the transaction back if we encounter an errors
+        await db.query('rollback')
+        // Inform the user why the transaction couldnt be saved
+        console.log('WARN - 1 or more rules were violated. Transfer rolled back.')
+    }
 }
